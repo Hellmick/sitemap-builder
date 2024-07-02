@@ -1,10 +1,6 @@
-package main
+package linkparser
 
 import (
-	"bytes"
-	"flag"
-	"fmt"
-	"os"
 	"strings"
 	"golang.org/x/net/html"
 )
@@ -19,8 +15,6 @@ func check(err error) {
 		panic(err)
 	}
 }
-
-var links []Link
 
 func retreiveText(node *html.Node) string {
 	var text string
@@ -46,34 +40,31 @@ func processNode(node *html.Node) (Link, error) {
 	return link, nil
 }
 
-func findLinks(node *html.Node) {
+func FindLinks(html_text string) []Link {
+	reader := strings.NewReader(html_text)
+	doc, err := html.Parse(reader)
+	check(err)
+	
+	var links []Link
+	var findLinks func(node *html.Node)
 
-	if node.Type == html.ElementNode && node.Data == "a" {
-		current_link, err := processNode(node)
-		check(err)
-		links = append(links, current_link)
-	}
+	findLinks = func(node *html.Node) {
+		
+		if node.Type == html.ElementNode && node.Data == "a" {
+			current_link, err := processNode(node)
+			check(err)
+			links = append(links, current_link)
+		}
 
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		findLinks(child)
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			findLinks(child)
+		}
 	}
+	
+	findLinks(doc)
+	return links
 
 }
 
-func main() {
-	filename := flag.String("f", "file.html", "filename of the parsed file")
-	flag.Parse()
 
-	dat, err := os.ReadFile(*filename)
-	check(err)
 
-	reader := bytes.NewReader(dat)
-	node_tree, err := html.Parse(reader)
-	check(err)
-
-	findLinks(node_tree)
-	for _, link := range links {
-		fmt.Printf("Text: %s, URL: %s\n", link.Text, link.Url)
-	}
-
-}
