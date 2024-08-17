@@ -1,17 +1,49 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"io"
 	"fmt"
 	"flag"
 	"github.com/Hellmick/sitemap-builder/linkparser"
 	"strings"
+	"encoding/xml"
 )
 
 type Sitemap struct {
-	Domain string
-	Urls []string
+	Domain	string
+	Urls	[]string
+}
+
+type Url struct {
+	Loc		string	`xml:"url>loc"`
+	Lastmod		string	`xml:"url>lastmod"`
+	Changefreq	string	`xml:"url>changefreq"`
+	Priority	string	`xml:"url>priority"`
+}
+
+type Urlset struct {
+	Urls	[]Url	`xml:"url"`
+	Xmlns	string	`xml:"xmlns,attr"`
+}
+
+func generateXml(sitemap *Sitemap) ([]byte, error) {
+	urlset := Urlset{
+		Urls: []Url{},
+		Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9",
+	}
+	for _, sitemap_url := range sitemap.Urls {
+		url := Url{
+			Loc: sitemap_url,
+			Lastmod: "",
+			Changefreq: "",
+			Priority: "",
+		}
+		urlset.Urls = append(urlset.Urls, url)
+	}
+	out, err := xml.MarshalIndent(urlset, " ", " ")
+	return out, err
 }
 
 func createSitemap(domain string, urls []string) *Sitemap{
@@ -26,13 +58,13 @@ func createSitemap(domain string, urls []string) *Sitemap{
 	return sitemap
 }
 
-func getWebsite(url string, domain string) string {
+func getWebsite(url string, domain string) (string, error) {
 	if retreiveDomain(url) == "" {
 		url = domain + url
 	}
 
 	if !strings.Contains(url, domain) {
-		return ""
+		return "", nil 
 	}
 
 	if !strings.Contains(url, "http://") && !strings.Contains(url, "https://") {
@@ -41,16 +73,16 @@ func getWebsite(url string, domain string) string {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
-	return string(body)
+	return string(body), nil
 }
 
 func retreiveDomain(url string) string {
@@ -89,13 +121,16 @@ func popFirst(slice []string) []string{
 	return slice[1:]
 }
 
-func breadthFirstSearch(url string, sitemap *Sitemap, depth int) *Sitemap {
+func breadthFirstSearch(url string, sitemap *Sitemap, depth int) (*Sitemap, error) {
 	queue := []string{}
 	queue = append(queue, url)
+
 	for i := 0; i < depth; i++ {
-		fmt.Sprintf("Iteration #%v", i+1)
 		for _, link := range queue {
-			html := getWebsite(link, sitemap.Domain)
+			html, err := getWebsite(link, sitemap.Domain)
+			if err != nil {
+				return sitemap, err
+			}
 			if html == "" {
 				continue
 			}
@@ -109,13 +144,13 @@ func breadthFirstSearch(url string, sitemap *Sitemap, depth int) *Sitemap {
 		}
 	}
 
-	return sitemap
+	return sitemap, nil
 }
 
 func main() {
-	fmt.Printf("Start\n")
 	url := flag.String("u", "", "URL to build the sitemap for")
 	depth := flag.Int("d", 3, "Depth of the BFS algorythm")
+	
 	flag.Parse()
 
 	if !strings.Contains(*url, "http://") && !strings.Contains(*url, "https://") {
@@ -128,14 +163,18 @@ func main() {
 		return
 	}
 
-	sitemap := createSitemap(retreiveDomain(*url), []string{})
-	sitemap = breadthFirstSearch(*url, sitemap, *depth)
-	
+	fmt.Printf("SitemapBuilder starts its work.\n")
 
-	for _, url := range sitemap.Urls {
-		fmt.Printf("Url:%s\n", url)
+	sitemap, err := breadthFirstSearch(*url, createSitemap(retreiveDomain(*url), []string{}), *depth)
+	if err != nil {
+		log.Fatal(err)
 	}
-	
 
-	fmt.Print("End\n")
+	sitemapXml, err := generateXml(sitemap)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf(xml.Header + string(sitemapXml) + "\n")
+
+	fmt.Print("Done.\n")
 }
