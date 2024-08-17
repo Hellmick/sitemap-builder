@@ -9,6 +9,7 @@ import (
 	"github.com/Hellmick/sitemap-builder/linkparser"
 	"strings"
 	"encoding/xml"
+	"os"
 )
 
 type Sitemap struct {
@@ -147,10 +148,20 @@ func breadthFirstSearch(url string, sitemap *Sitemap, depth int) (*Sitemap, erro
 	return sitemap, nil
 }
 
+func writeToFile(filename string, xml []byte) error {
+	err := os.WriteFile(filename, xml, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	url := flag.String("u", "", "URL to build the sitemap for")
 	depth := flag.Int("d", 3, "Depth of the BFS algorythm")
-	
+	filename := flag.String("f", "sitemap.xml", "Output file name")
+
 	flag.Parse()
 
 	if !strings.Contains(*url, "http://") && !strings.Contains(*url, "https://") {
@@ -175,6 +186,12 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Printf(xml.Header + string(sitemapXml) + "\n")
+	if filename != nil {
+		err := writeToFile(*filename, sitemapXml)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	fmt.Print("Done.\n")
 }
