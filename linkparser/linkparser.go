@@ -40,29 +40,35 @@ func processNode(node *html.Node) (Link, error) {
 	return link, nil
 }
 
-func FindLinks(html_text string) []Link {
+func FindLinks(html_text string) ([]Link, error) {
 	reader := strings.NewReader(html_text)
-	doc, err := html.Parse(reader)
-	check(err)
-	
 	var links []Link
-	var findLinks func(node *html.Node)
+	var findLinks func(node *html.Node) error
+	
+	doc, err := html.Parse(reader)
+	if err != nil {
+		return links, err
+	}
 
-	findLinks = func(node *html.Node) {
+	findLinks = func(node *html.Node) error {
 		
+		//TODO: make it concurrent
 		if node.Type == html.ElementNode && node.Data == "a" {
 			current_link, err := processNode(node)
-			check(err)
+			if err != nil {
+				return err
+			}
 			links = append(links, current_link)
 		}
 
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			findLinks(child)
 		}
+		return nil
 	}
 	
-	findLinks(doc)
-	return links
+	err = findLinks(doc)
+	return links, err
 
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"errors"
 	"net/http"
 	"io"
 	"fmt"
@@ -44,7 +45,9 @@ func generateXml(sitemap *Sitemap) ([]byte, error) {
 		urlset.Urls = append(urlset.Urls, url)
 	}
 	out, err := xml.MarshalIndent(urlset, " ", " ")
-	return out, err
+	xml := []byte(xml.Header + string(out))
+	
+	return xml, err
 }
 
 func createSitemap(domain string, urls []string) *Sitemap{
@@ -123,22 +126,28 @@ func popFirst(slice []string) []string{
 }
 
 func breadthFirstSearch(url string, sitemap *Sitemap, depth int) (*Sitemap, error) {
+	if depth < 1 {
+		err := errors.New("Algorythm depth must be greater thatn 0")
+		return sitemap, err
+	}
+
+	visited := make(map[string]bool)
 	queue := []string{}
 	queue = append(queue, url)
-
 	for i := 0; i < depth; i++ {
 		for _, link := range queue {
 			html, err := getWebsite(link, sitemap.Domain)
-			if err != nil {
-				return sitemap, err
-			}
-			if html == "" {
+			if err != nil || html == "" || visited["link"] == true{
 				continue
+			}
+			if visited["link"] == false {
+				visited["link"] = true 
 			}
 			links := linkparser.FindLinks(html)
 			filteredUrls := filterLinks(sitemap, links)
 			queue = popFirst(queue)
-			for _, url := range filteredUrls{
+			
+			for _, url := range filteredUrls {
 				sitemap.Urls = append(sitemap.Urls, url)
 				queue = append(queue, url)
 			}
@@ -165,12 +174,12 @@ func main() {
 	flag.Parse()
 
 	if !strings.Contains(*url, "http://") && !strings.Contains(*url, "https://") {
-		fmt.Printf("URL must contain the protocol!")
+		fmt.Printf("URL must contain the protocol!\n")
 		return
 	}
 
 	if *url == "" {
-		fmt.Printf("Usage: sb -u http://example.com -d depth (default 3)")
+		fmt.Printf("Usage: sb -u http://example.com -d depth (default 3)\n")
 		return
 	}
 
