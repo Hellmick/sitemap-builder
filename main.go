@@ -143,7 +143,10 @@ func breadthFirstSearch(url string, sitemap *Sitemap, depth int) (*Sitemap, erro
 			if visited["link"] == false {
 				visited["link"] = true 
 			}
-			links := linkparser.FindLinks(html)
+			links, err := linkparser.FindLinks(html)
+			if err != nil {
+				return sitemap, err
+			}
 			filteredUrls := filterLinks(sitemap, links)
 			queue = popFirst(queue)
 			
