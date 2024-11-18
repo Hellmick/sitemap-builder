@@ -9,6 +9,6 @@ The program generates xml of the sitemap in the standard sitemap protocol.
 # Usage:
     ./sitemap-builder -u <URL> 
 Parameters:
-  -d <depth of bfs> 
-  -f <filename>
+  -d \<depth of bfs> 
+  -f \<filename>
    
