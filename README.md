@@ -1,7 +1,7 @@
 # Sitemap builder
 The program generates xml of the sitemap in the standard sitemap protocol.
   It crawls through webpages for given domain by using breadth first search algorythm.
-  Then it writes the xml to a given file
+  Then it writes the xml to a given file name in the standard format
 # Installation:
     git clone https://github.com/Hellmick/sitemap-builder.git
     cd sitemap-builder
